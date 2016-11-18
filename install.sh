@@ -4,8 +4,18 @@ set -ex
 
 SERVICE_ACCOUNT=journald-cloudwatch-logs
 SYSTEMD_GROUP=systemd-journal
+LOG_LEVEL_TO_SHIP=info
+LOG_GROUP_NAME=/journald
 
-useradd -s /usr/sbin/nologin -r -M -N $SERVICE_ACCOUNT -G $SYSTEMD_GROUP
+curl -fsSL https://github.com/tyrken/journald-cloudwatch-logs/releases/download/v1.0-addons-1/journald-cloudwatch-logs -o /usr/local/bin/journald-cloudwatch-logs
+chmod a+x /usr/local/bin/journald-cloudwatch-logs
+
+if getent passwd $SERVICE_ACCOUNT > /dev/null 2>&1; then
+    echo "$SERVICE_ACCOUNT already exists, using..."
+else
+    useradd -s /usr/sbin/nologin -r -M -N $SERVICE_ACCOUNT -G $SYSTEMD_GROUP
+fi
+
 mkdir -p /var/lib/journald-cloudwatch-logs
 chown $SERVICE_ACCOUNT:$SYSTEMD_GROUP /var/lib/journald-cloudwatch-logs
 
@@ -30,9 +40,9 @@ EOF
 chmod 644 /etc/systemd/system/journald-cloudwatch.service
 
 cat <<EOF > /etc/journald-cloudwatch.conf
-log_group = "/journald-logs"
+log_group = "$LOG_GROUP_NAME"
 state_file = "/var/lib/journald-cloudwatch-logs/state"
-log_priority = "info"
+log_priority = "$LOG_LEVEL_TO_SHIP"
 EOF
 
 systemctl enable journald-cloudwatch.service
